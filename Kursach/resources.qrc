@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/img">
+        <file>images/avatar_addon_11cb4_180x180.png</file>
+    </qresource>
+</RCC>
