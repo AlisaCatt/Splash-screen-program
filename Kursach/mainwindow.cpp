@@ -17,31 +17,82 @@
 //--------------------------------------------------------
 
 //-----------Включены для сохранения объектов класса--------
-#include <QtCore>
+#include <QTextStream>
+#include <QTextCodec>
 //--------------------------------------------------------
 
-//-----------ПРОБНИК-ПЕРЕЛИСТЫВАНИЕ ОБОЕВ-------
-#include <Wininet.h>
-#include <Shlobj.h.>
-//--------------------------
+//-----------Включены для установки обоев-------
+#include <QTimer>
 #include <QFileDialog>
 #include <QFileInfo>
+//--------------------------
+
+
 
 
 //---------------------------------------------------------------------------------------
 //Функция установки заставки
-void setWall(QString name)
+void setWall()
 { 
-    //просмотр файлов в папке, затем брать адрес, менять в нужный тип, дальше ставить на рабочий стол
-    wchar_t wcPath[1024];
-     name.toWCharArray(wcPath);
+
+    QDir dir ("C:\\Users\\Lisa\\Documents\\Kursach\\Wallpapers\\"); //объявляем директорию
+    QStringList filters; //фильтры
+    filters <<  "*.png" << "*.jpeg" << "*.jpg" << "*.bmp";
+    dir.setNameFilters(filters); //устанавливаем фильтр  файлов
+    QFileInfoList list = dir.entryInfoList(); //получаем список файлов директории
     int result;
-    result = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, wcPath, SPIF_UPDATEINIFILE);
+    for (int i = 0; i < list.size(); ++i)
+    {
+    QFileInfo fileInfo = list[i];
+    wchar_t wcPath[1024];
+    QString path;
+    path = fileInfo.absoluteFilePath();
+    path.toWCharArray(wcPath);
+   /*QTimer timer = new QTimer();
+    timer->start(5000);
+    if(timer->remainingTime() == 0)*/
+
+       {
+       result = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0,  wcPath , SPIF_UPDATEINIFILE);
+      Sleep(10000); //Такой себе способ, разобраться с таймером
+       }
+    }
 }
 //---------------------------------------------------------------------------------------
 
+//---------------------------------------------------------------------------------------
+//Функция очистки папки (для папки с обоями)
+int removeFolder(QDir & dir)
+{
+  int res = 0;
+QStringList lstDirs = dir.entryList(QDir::Dirs |QDir::AllDirs |QDir::NoDotAndDotDot);
+ //Получаем список файлов
+ QStringList lstFiles = dir.entryList(QDir::Files);
 
+ //Удаляем файлы
+ foreach (QString entry, lstFiles)
+ {
+  QString entryAbsPath = dir.absolutePath() + "/" + entry;
+  QFile::setPermissions(entryAbsPath, QFile::ReadOwner | QFile::WriteOwner);
+  QFile::remove(entryAbsPath);
+ }
 
+ //Для папок делаем рекурсивный вызов
+ foreach (QString entry, lstDirs)
+ {
+  QString entryAbsPath = dir.absolutePath() + "/" + entry;
+  QDir dr(entryAbsPath);
+  removeFolder(dr);
+ }
+
+ //Удаляем обрабатываемую папку
+ if (!QDir().rmdir(dir.absolutePath()))
+ {
+   res = 1;
+ }
+ return res;
+}
+//---------------------------------------------------------------------------------------
 
 
 //-------------Класс Картинка+Хештег---------------
@@ -64,16 +115,8 @@ public:
 //Заменить метатайп
 //сделать поиск по хештегу
 //чтобы выводил все картинки с хештегами
-Q_DECLARE_METATYPE(PictureHeshtegs); //Для сохранения в файл
-QDataStream& operator<<(QDataStream& out, const PictureHeshtegs& v) {
-    out << v.qspicture << v.qsheshtegs;
-    return out;
-}
-QDataStream& operator>>(QDataStream& in, PictureHeshtegs& v) {
-    in >> v.qspicture;
-    in >> v.qsheshtegs;
-    return in;
-}
+
+
 //-------------------------------------------------
 
 
@@ -136,18 +179,70 @@ void MainWindow::on_ChangeHashtagButton_clicked()
     newobject.TakePictureHeshtegs(name, heshtegsline); //Применяем к нему адрес и хештеги
     ui -> statusBar -> showMessage("Хештеги успешно применены", 4000); //оповещаем пользователя
 
+    QTextCodec::setCodecForLocale( QTextCodec::codecForName( "UTF-8" ) ); //Чтобы кодировка поддерживалась
+    QFile out("Walls.txt");
+    out.open(QIODevice::ReadOnly |QIODevice::Text); //поиск строчки с адресом картинки (ну вдруг она уже сохранялась)
 
-   qRegisterMetaTypeStreamOperators<PictureHeshtegs>("PictureHeshtegs"); //Вроде как сохраняет в файл данные класса
-    {
-           PictureHeshtegs t;
-           t.qspicture = name;
-           t.qsheshtegs = heshtegsline;
-           QSettings s("config.ini", QSettings::IniFormat);
-           s.setValue("pichesh", QVariant::fromValue(t));
+        QString line;
+        QTextStream stream(&out);
+        QStringList arr;
+        bool flag2 = false;
+        int countline(0);
+        while(!out.atEnd())
+        {
+           line =  out.readLine();
+           countline++;
+           if((line.trimmed())==name)
+              {
+               flag2 = true;
+               out.close();
+              }
+        }
+           if (flag2 == true)
+           {
+               out.open(QIODevice::ReadOnly |QIODevice::Text);
+               QTextStream streams(&out);
+               for(int i(0); i<countline; i++)
+                 {
+                    QString copyline = streams.readLine();
+                    arr.append(copyline);
+                 }
+               QString copyline =  ui->lineEdit->text();
+               arr.append(copyline);
+               QString rubbish = out.readLine();
 
-     }
+                        while (true)
+                         {
+                          QString copylines = out.readLine();
+                          if (copylines.isNull())
+                               break;
+                          else
+                               arr.append(copylines);
+                          }
 
 
+            out.close();
+            out.open(QIODevice::WriteOnly);
+            out.resize(0); //чтобы удалить все старые строки в файле
+            QTextStream stream(&out);
+            for (QStringList::Iterator it = arr.begin(); it!=arr.end(); ++ it)
+                   stream << * it << '\n'<< '\r';
+            out.close();
+
+           }
+       else
+           {
+
+out.close();
+               out.open(QIODevice::Append);//Append = дописывание в конец файла
+                  QTextStream stream( &out );
+                    stream << newobject.qspicture;
+                      stream << "\r\n";
+                     stream << newobject.qsheshtegs;
+                     stream << "\r\n";
+                   out.close();
+
+           }
 
 }
 //---------------------------------------------------------------------------------------
@@ -156,9 +251,8 @@ void MainWindow::on_ChangeHashtagButton_clicked()
 //Текст кода, запускающий заставки по хештегу
 void MainWindow::on_TurnOnSplashScreenButton_clicked()
 {
-    //очистить папку с обоями
-
-    bool QDir::removeRecursively()
+    QDir dir ("C:\\Users\\Lisa\\Documents\\Kursach\\Wallpapers\\");
+    removeFolder(dir); //очищаем папку с предыдущими обоями
     QString heshtegsline = ui->lineEdit->text(); //Получаем хештеги из формы
     QString name; //Переменная для пути
     Q_ASSERT(ui->treeView->currentIndex().isValid());
@@ -166,7 +260,7 @@ void MainWindow::on_TurnOnSplashScreenButton_clicked()
     QFileInfo fileInfo(name);
     QString filename(fileInfo.fileName());
     QFile::copy(name, "C:\\Users\\Lisa\\Documents\\Kursach\\Wallpapers\\" +  filename); //Копирование файла в папку
-    setWall(name); //запуск функции-установщика заставок
+    setWall(); //запуск функции-установщика заставок
 }
 //---------------------------------------------------------------------------------------
 
@@ -194,14 +288,6 @@ void MainWindow::on_treeView_doubleClicked(const QModelIndex  &index)
        int width = ui ->Field -> width(); //Получение размеров label
        int height = ui ->Field -> height();
        ui -> Field ->setPixmap(myPixmap.scaled(width, height, Qt::KeepAspectRatio) ); //Впихивание картинки в label (с подгоном под его размеры)
-
-       qRegisterMetaTypeStreamOperators<PictureHeshtegs>("PictureHeshtegs");
-       QSettings s("config.ini", QSettings::IniFormat);
-       QVariant value = s.value("pichesh");
-       PictureHeshtegs t = value.value<PictureHeshtegs>();
-       if (t.qspicture == name)
-       ui ->lineEdit ->setText(t.qsheshtegs);
-
 
 }
 //---------------------------------------------------------------------------------------
