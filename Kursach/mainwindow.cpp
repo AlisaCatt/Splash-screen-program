@@ -168,7 +168,7 @@ void MainWindow::on_SearchHashtagButton_clicked()
 //---------------------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------------------
-//Применение хештегов к картинке
+//Применение хештегов к картинке и сохранение их в файл
 void MainWindow::on_ChangeHashtagButton_clicked()
 {
     QString heshtegsline = ui->lineEdit->text(); //Получаем хештеги из формы
@@ -182,66 +182,61 @@ void MainWindow::on_ChangeHashtagButton_clicked()
     QTextCodec::setCodecForLocale( QTextCodec::codecForName( "UTF-8" ) ); //Чтобы кодировка поддерживалась
     QFile out("Walls.txt");
     out.open(QIODevice::ReadOnly |QIODevice::Text); //поиск строчки с адресом картинки (ну вдруг она уже сохранялась)
-
-        QString line;
-        QTextStream stream(&out);
-        QStringList arr;
-        bool flag2 = false;
-        int countline(0);
-        while(!out.atEnd())
+        QString line; //Переменная для строк из файла
+        QStringList arr; //массив, куда будет временно сохраняться инфа из файла
+        bool flag2 = false; //Флаг для отслеживания, есть ли уже адрес картинки в файле или надо его написать
+        int countline(0); //подсчет строк до адреса, если он уже есть в файле
+        while(!out.atEnd()) //пока не конец файла
         {
-           line =  out.readLine();
+           line =  out.readLine(); //ччитаем и считаем строки
            countline++;
-           if((line.trimmed())==name)
+           if((line.trimmed())==name) //trimmed - отбрасывание конца строки. Сравниваем с адресом "свежей" картинки.
               {
-               flag2 = true;
+               flag2 = true; //адреса совпали - меняем флаг
                out.close();
               }
         }
-           if (flag2 == true)
+           if (flag2 == true) //раз адреса совпали, меняем хештеги в файле
            {
                out.open(QIODevice::ReadOnly |QIODevice::Text);
                QTextStream streams(&out);
                for(int i(0); i<countline; i++)
                  {
                     QString copyline = streams.readLine();
-                    arr.append(copyline);
+                    arr.append(copyline); //копируем во временный массив все строчки до адреса картинки и сам адрес
                  }
                QString copyline =  ui->lineEdit->text();
-               arr.append(copyline);
-               QString rubbish = out.readLine();
-
-                        while (true)
-                         {
-                          QString copylines = out.readLine();
-                          if (copylines.isNull())
-                               break;
-                          else
-                               arr.append(copylines);
-                          }
-
-
-            out.close();
-            out.open(QIODevice::WriteOnly);
-            out.resize(0); //чтобы удалить все старые строки в файле
-            QTextStream stream(&out);
-            for (QStringList::Iterator it = arr.begin(); it!=arr.end(); ++ it)
-                   stream << * it << '\n'<< '\r';
-            out.close();
+               arr.append(copyline); //следующая строка в массиве - новые хештеги картинки
+               streams.readLine(); //съедаем строчку со старыми хештегами
+               while (true) //бесконечный цикл
+                  {
+                    QString copylines = streams.readLine(); //берем строку из файла
+                    if (copylines.isNull())
+                         break; //если она нулевая, то выходим из цикла
+                    else
+                         arr.append(copylines); //копируем оставшиеся адреса и хештеги
+                  }
+                out.close(); //Закрываем файл
+                out.open(QIODevice::WriteOnly); //Открываем для записи
+                out.resize(0); //чтобы удалить все старые строки в файле
+                QTextStream stream(&out);
+                for (int i = 0; i < arr.size(); ++i) //записываем из массива в файл
+                    {
+                     stream << arr.at(i) << '\r' << '\n';
+                    }
+                out.close();
 
            }
-       else
+           else //если адреса картинки еще нет в файле
            {
-
-out.close();
-               out.open(QIODevice::Append);//Append = дописывание в конец файла
-                  QTextStream stream( &out );
-                    stream << newobject.qspicture;
-                      stream << "\r\n";
-                     stream << newobject.qsheshtegs;
-                     stream << "\r\n";
-                   out.close();
-
+              out.close(); //Закрываем чтение файла
+              out.open(QIODevice::Append);//Append = дописывание в конец файла
+              QTextStream stream( &out );
+              stream << newobject.qspicture; //Записываем две новые строки в файл
+              stream << "\r\n";
+              stream << newobject.qsheshtegs;
+              stream << "\r\n";
+              out.close();
            }
 
 }
