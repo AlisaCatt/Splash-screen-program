@@ -12,8 +12,10 @@
 //--------------------------------------------------------------
 
 //-----------Включены для изменения рабочего стола--------
-#include <windows.h>
 #include <iostream>
+#include "shobjidl.h"
+#include <Windows.h>
+#include <QApplication>
 //--------------------------------------------------------
 
 //-----------Включены для сохранения объектов класса--------
@@ -25,22 +27,19 @@
 #include <QTimer>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QDebug>
 //--------------------------
-
-
 
 
 //---------------------------------------------------------------------------------------
 //Функция установки заставки
 void setWall()
 { 
-
     QDir dir ("C:\\Users\\Lisa\\Documents\\Kursach\\Wallpapers\\"); //объявляем директорию
     QStringList filters; //фильтры
     filters <<  "*.png" << "*.jpeg" << "*.jpg" << "*.bmp";
     dir.setNameFilters(filters); //устанавливаем фильтр  файлов
     QFileInfoList list = dir.entryInfoList(); //получаем список файлов директории
-    int result;
     for (int i = 0; i < list.size(); ++i)
     {
     QFileInfo fileInfo = list[i];
@@ -48,14 +47,12 @@ void setWall()
     QString path;
     path = fileInfo.absoluteFilePath();
     path.toWCharArray(wcPath);
-   /*QTimer timer = new QTimer();
-    timer->start(5000);
-    if(timer->remainingTime() == 0)*/
 
-       {
-       result = SystemParametersInfo(SPI_SETDESKWALLPAPER, 0,  wcPath , SPIF_UPDATEINIFILE);
-      Sleep(10000); //Такой себе способ, разобраться с таймером
-       }
+
+
+
+         SystemParametersInfo(SPI_SETDESKWALLPAPER, 0,  wcPath , SPIF_UPDATEINIFILE);
+
     }
 }
 //---------------------------------------------------------------------------------------
@@ -64,19 +61,19 @@ void setWall()
 //Функция очистки папки (для папки с обоями)
 int removeFolder(QDir & dir)
 {
-  int res = 0;
+int res = 0;
+//Получаем список папок
 QStringList lstDirs = dir.entryList(QDir::Dirs |QDir::AllDirs |QDir::NoDotAndDotDot);
- //Получаем список файлов
- QStringList lstFiles = dir.entryList(QDir::Files);
+//Получаем список файлов
+QStringList lstFiles = dir.entryList(QDir::Files);
 
- //Удаляем файлы
+//Удаляем файлы
  foreach (QString entry, lstFiles)
  {
   QString entryAbsPath = dir.absolutePath() + "/" + entry;
   QFile::setPermissions(entryAbsPath, QFile::ReadOwner | QFile::WriteOwner);
   QFile::remove(entryAbsPath);
  }
-
  //Для папок делаем рекурсивный вызов
  foreach (QString entry, lstDirs)
  {
@@ -84,7 +81,6 @@ QStringList lstDirs = dir.entryList(QDir::Dirs |QDir::AllDirs |QDir::NoDotAndDot
   QDir dr(entryAbsPath);
   removeFolder(dr);
  }
-
  //Удаляем обрабатываемую папку
  if (!QDir().rmdir(dir.absolutePath()))
  {
@@ -93,7 +89,6 @@ QStringList lstDirs = dir.entryList(QDir::Dirs |QDir::AllDirs |QDir::NoDotAndDot
  return res;
 }
 //---------------------------------------------------------------------------------------
-
 
 //-------------Класс Картинка+Хештег---------------
 class PictureHeshtegs
@@ -110,24 +105,13 @@ public:
     }
 
 };
-//Рекомендации Антона:
-//Сохранять просто в конец файла и брать потом адрес и хештеги к адресу
-//Заменить метатайп
-//сделать поиск по хештегу
-//чтобы выводил все картинки с хештегами
-
-
 //-------------------------------------------------
-
-
 
 MainWindow::MainWindow(QWidget *parent) : //основное чет
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-
-
     //-------Дерево папок с фильтрацией на картинки-------------
     /*Неплохо бы доделать, чтоб папки без картинок вообще не показывались*/
     QStringList filters; //фильтры
@@ -141,16 +125,6 @@ MainWindow::MainWindow(QWidget *parent) : //основное чет
     ui->treeView->hideColumn(2);
     ui->treeView->hideColumn(3);
     //--------------------------------
-
-
-    //---------------------ПРОБНИИК----------------------------------------
-    //
-
-
-    //---------------------------------------------------------------------------------------
-
-
-
 }
 
 MainWindow::~MainWindow()
@@ -158,12 +132,36 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-
 //---------------------------------------------------------------------------------------
-//
+//Поиск картинки по хештегу
 void MainWindow::on_SearchHashtagButton_clicked()
 {
-    //Кусок кода, который ищет картинки по хештегу
+QString heshtegsline = ui->lineEdit->text(); //Получаем хештеги из формы
+QTextCodec::setCodecForLocale( QTextCodec::codecForName( "UTF-8" ) ); //Чтобы кодировка поддерживалась
+QFile out("Walls.txt");
+out.open(QIODevice::ReadOnly |QIODevice::Text); //поиск строчки с хештегами из формы в файле
+    QString line1; //Переменная для адресов из файла
+    QString line2; //Переменная для хештегов из файла
+    int width = ui ->Field -> width(); //Получение размеров label
+    int height = ui ->Field -> height();
+    bool flag = false; //Флаг проверки нахождения картинки
+    while(!out.atEnd()) //пока не конец файла
+    {
+       line1 =  out.readLine(); //читаем  адрес
+       line2 =  out.readLine(); //читаем  хештеги
+
+       if((line2.trimmed())==heshtegsline) //trimmed - отбрасывание конца строки. Сравниваем с хештегами
+          {
+           QPixmap myPixmap(line1.trimmed()); //Создание переменной для картинки, которая лежит по адресу..
+           ui -> Field ->setPixmap(myPixmap.scaled(width, height, Qt::KeepAspectRatio));
+           flag = true; //Нашли хотя б одну по хештегу, меняем флаг
+          }
+    }
+    if (flag==false)
+    {
+      ui -> statusBar -> showMessage("Картинки с таким хештегом нет", 4000); //оповещаем пользователя
+    }
+     out.close();
 }
 //---------------------------------------------------------------------------------------
 
@@ -271,7 +269,7 @@ void MainWindow::on_SettingsButton_clicked()
 //---------------------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------------------
-//Двойное нажатие на изображении в дереве (Открывает картинку)
+//Двойное нажатие на изображении в дереве (Открывает картинку и ее хештеги)
 void MainWindow::on_treeView_doubleClicked(const QModelIndex  &index)
 {
     ui ->lineEdit ->setText(" "); //очищение формы от предыдущих хештегов
@@ -283,6 +281,21 @@ void MainWindow::on_treeView_doubleClicked(const QModelIndex  &index)
        int width = ui ->Field -> width(); //Получение размеров label
        int height = ui ->Field -> height();
        ui -> Field ->setPixmap(myPixmap.scaled(width, height, Qt::KeepAspectRatio) ); //Впихивание картинки в label (с подгоном под его размеры)
+       QTextCodec::setCodecForLocale( QTextCodec::codecForName( "UTF-8" ) ); //Чтобы кодировка поддерживалась
+       QFile out("Walls.txt");
+       out.open(QIODevice::ReadOnly |QIODevice::Text); //поиск строчки с адресом картинки (ну вдруг она уже сохранялась)
+           QString line; //Переменная для строк из файла
+           while(!out.atEnd()) //пока не конец файла
+           {
+              line =  out.readLine(); //читаем  строки
+              if((line.trimmed())==name) //trimmed - отбрасывание конца строки. Сравниваем с адресом картинки.
+                 {
+                  line =  out.readLine(); //Адрес совпал, читаем строчку хештегов (след.строка)
+                  ui ->lineEdit ->setText(line); //отправляем хештеги в форму
+                  out.close();
+                 }
+           }
+
 
 }
 //---------------------------------------------------------------------------------------
