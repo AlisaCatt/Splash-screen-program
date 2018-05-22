@@ -1,4 +1,4 @@
- #include "mainwindow.h"
+#include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "settingswindow.h"
 #include <QPixmap>
@@ -28,6 +28,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QDebug>
+#include <QVector>
 //--------------------------
 
 
@@ -43,16 +44,24 @@ void setWall()
     for (int i = 0; i < list.size(); ++i)
     {
     QFileInfo fileInfo = list[i];
-    wchar_t wcPath[1024];
+    wchar_t wcPath[1024] = {0};
     QString path;
     path = fileInfo.absoluteFilePath();
     path.toWCharArray(wcPath);
-
-
-
-
-         SystemParametersInfo(SPI_SETDESKWALLPAPER, 0,  wcPath , SPIF_UPDATEINIFILE);
-
+    QVector <wchar_t> path1;
+    for (int j = 0; j < 1024; ++j)
+    {
+        if (wcPath[j] != '/0')
+            path1.push_back(wcPath[j]);
+        else
+            break;
+    }
+    wchar_t wcPath1[path1.size()] = {0};
+    for (int j = 0; j < path1.size(); ++j)
+    {
+    wcPath1[j] =  path1.at(j);
+    }
+     SystemParametersInfo(SPI_SETDESKWALLPAPER, 0, wcPath1 , SPIF_UPDATEINIFILE);
     }
 }
 //---------------------------------------------------------------------------------------
@@ -246,14 +255,33 @@ void MainWindow::on_TurnOnSplashScreenButton_clicked()
 {
     QDir dir ("C:\\Users\\Lisa\\Documents\\Kursach\\Wallpapers\\");
     removeFolder(dir); //очищаем папку с предыдущими обоями
+
+
     QString heshtegsline = ui->lineEdit->text(); //Получаем хештеги из формы
-    QString name; //Переменная для пути
-    Q_ASSERT(ui->treeView->currentIndex().isValid());
-    name = (static_cast<QDirModel *>(ui->treeView->model()))->filePath(ui->treeView->currentIndex()); //Получение пути до картинки
-    QFileInfo fileInfo(name);
-    QString filename(fileInfo.fileName());
-    QFile::copy(name, "C:\\Users\\Lisa\\Documents\\Kursach\\Wallpapers\\" +  filename); //Копирование файла в папку
-    setWall(); //запуск функции-установщика заставок
+    QTextCodec::setCodecForLocale( QTextCodec::codecForName( "UTF-8" ) ); //Чтобы кодировка поддерживалась
+    QFile out("Walls.txt");
+    out.open(QIODevice::ReadOnly |QIODevice::Text); //поиск строчки с хештегами из формы в файле
+        QString line1; //Переменная для адресов из файла
+        QString line2; //Переменная для хештегов из файла
+        bool flag = false; //Флаг проверки нахождения картинки
+        while(!out.atEnd()) //пока не конец файла
+        {
+           line1 =  out.readLine(); //читаем  адрес
+           line2 =  out.readLine(); //читаем  хештеги
+           if((line2.trimmed())==heshtegsline) //trimmed - отбрасывание конца строки. Сравниваем с хештегами
+              {
+               flag = true; //Нашли хотя б одну по хештегу, меняем флаг
+               QFileInfo fileInfo(line1.trimmed());
+               QString filename(fileInfo.fileName());
+               QFile::copy(line1.trimmed(), "C:\\Users\\Lisa\\Documents\\Kursach\\Wallpapers\\" +  filename); //Копирование файла в папку
+               setWall(); //запуск функции-установщика заставок
+              }
+        }
+        if (flag==false)
+        {
+          ui -> statusBar -> showMessage("Картинки с таким хештегом нет", 4000); //оповещаем пользователя
+        }
+         out.close();
 }
 //---------------------------------------------------------------------------------------
 
