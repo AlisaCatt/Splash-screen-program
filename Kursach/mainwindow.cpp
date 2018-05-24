@@ -158,13 +158,22 @@ out.open(QIODevice::ReadOnly |QIODevice::Text); //поиск строчки с �
     {
        line1 =  out.readLine(); //читаем  адрес
        line2 =  out.readLine(); //читаем  хештеги
+       line2 = line2.trimmed(); //trimmed - отбрасывание конца строки.
 
-       if((line2.trimmed())==heshtegsline) //trimmed - отбрасывание конца строки. Сравниваем с хештегами
-          {
-           QPixmap myPixmap(line1.trimmed()); //Создание переменной для картинки, которая лежит по адресу..
-           ui -> Field ->setPixmap(myPixmap.scaled(width, height, Qt::KeepAspectRatio));
-           flag = true; //Нашли хотя б одну по хештегу, меняем флаг
-          }
+            QStringList list = line2.split(QRegExp(" "), QString::SkipEmptyParts);
+            QStringList list2 = heshtegsline.split(QRegExp(" "), QString::SkipEmptyParts);
+            for (int i = 0; i<list.size(); i++)
+            {
+                  for (int j = 0; j<list2.size(); j++)
+                  {
+                      if (list2.at(j)==list.at(i))
+                      {
+                          QPixmap myPixmap(line1.trimmed()); //Создание переменной для картинки, которая лежит по адресу..
+                          ui -> Field ->setPixmap(myPixmap.scaled(width, height, Qt::KeepAspectRatio));
+                          flag = true; //Нашли хотя б одну по хештегу, меняем флаг
+                      }
+                  }
+            }
     }
     if (flag==false)
     {
@@ -232,7 +241,6 @@ void MainWindow::on_ChangeHashtagButton_clicked()
                      stream << arr.at(i) << '\r' << '\n';
                     }
                 out.close();
-
            }
            else //если адреса картинки еще нет в файле
            {
@@ -268,14 +276,28 @@ void MainWindow::on_TurnOnSplashScreenButton_clicked()
         {
            line1 =  out.readLine(); //читаем  адрес
            line2 =  out.readLine(); //читаем  хештеги
-           if((line2.trimmed())==heshtegsline) //trimmed - отбрасывание конца строки. Сравниваем с хештегами
-              {
-               flag = true; //Нашли хотя б одну по хештегу, меняем флаг
-               QFileInfo fileInfo(line1.trimmed());
-               QString filename(fileInfo.fileName());
-               QFile::copy(line1.trimmed(), "C:\\Users\\Lisa\\Documents\\Kursach\\Wallpapers\\" +  filename); //Копирование файла в папку
-               setWall(); //запуск функции-установщика заставок
-              }
+
+           line2 = line2.trimmed(); //trimmed - отбрасывание конца строки.
+                /* Засовываем строку с хештегами из формы и строку с хештегами из файла в массивы
+                 (каждое слово строки - отдельный элемент массива), затем
+                  каждый элемент оного массива сравниваем с каждым элементом другого массива,
+                  если есть совпадение хоть в одном хештеге, производится действие */
+                QStringList list = line2.split(QRegExp(" "), QString::SkipEmptyParts);
+                QStringList list2 = heshtegsline.split(QRegExp(" "), QString::SkipEmptyParts);
+                for (int i = 0; i<list.size(); i++)
+                {
+                      for (int j = 0; j<list2.size(); j++)
+                      {
+                          if (list2.at(j)==list.at(i))
+                          {
+                              flag = true; //Нашли хотя б одну по хештегу, меняем флаг
+                              QFileInfo fileInfo(line1.trimmed());
+                              QString filename(fileInfo.fileName());
+                              QFile::copy(line1.trimmed(), "C:\\Users\\Lisa\\Documents\\Kursach\\Wallpapers\\" +  filename); //Копирование файла в папку
+                              setWall(); //запуск функции-установщика заставок
+                          }
+                      }
+                }
         }
         if (flag==false)
         {
@@ -300,12 +322,11 @@ void MainWindow::on_SettingsButton_clicked()
 //Двойное нажатие на изображении в дереве (Открывает картинку и ее хештеги)
 void MainWindow::on_treeView_doubleClicked(const QModelIndex  &index)
 {
-    ui ->lineEdit ->setText(" "); //очищение формы от предыдущих хештегов
+    ui ->lineEdit->clear();//очищение формы от предыдущих хештегов
     QString name; //Переменная для пути
        Q_ASSERT(ui->treeView->currentIndex().isValid());
        name = (static_cast<QDirModel *>(ui->treeView->model()))->filePath(ui->treeView->currentIndex()); //Получение пути до картинки (Так как модель QDirModel старая, работает вот так ток)
        QPixmap myPixmap(name); //Создание переменной для картинки, которая лежит по адресу..
-
        int width = ui ->Field -> width(); //Получение размеров label
        int height = ui ->Field -> height();
        ui -> Field ->setPixmap(myPixmap.scaled(width, height, Qt::KeepAspectRatio) ); //Впихивание картинки в label (с подгоном под его размеры)
@@ -319,12 +340,11 @@ void MainWindow::on_treeView_doubleClicked(const QModelIndex  &index)
               if((line.trimmed())==name) //trimmed - отбрасывание конца строки. Сравниваем с адресом картинки.
                  {
                   line =  out.readLine(); //Адрес совпал, читаем строчку хештегов (след.строка)
+                  line = line.trimmed();
                   ui ->lineEdit ->setText(line); //отправляем хештеги в форму
                   out.close();
                  }
            }
-
-
 }
 //---------------------------------------------------------------------------------------
 
